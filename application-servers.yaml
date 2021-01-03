@@ -64,7 +64,7 @@ Resources:
   WebServerSecGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow HTTP to web servers.
+      GroupDescription: Allow HTTP to web servers and SSH from the bastion host only.
       VpcId:
         Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
       SecurityGroupIngress:
@@ -72,6 +72,19 @@ Resources:
         FromPort: 80
         ToPort: 80
         SourceSecurityGroupId: !Ref LBSecGroup
+      # For the troubleshooting open the 22 port and use bastion hosts to SSH into web servers 
+      #- IpProtocol: tcp
+      #  FromPort: 22
+      #  ToPort: 22
+      #  CidrIp: 
+      #    Fn::ImportValue:
+      #      !Sub ${EnvironmentName}-BASTION-HOST-1-CIDR
+      #- IpProtocol: tcp
+      #  FromPort: 22
+      #  ToPort: 22
+      #  CidrIp: 
+      #    Fn::ImportValue:
+      #      !Sub ${EnvironmentName}-BASTION-HOST-2-CIDR
       SecurityGroupEgress:
       - IpProtocol: tcp
         FromPort: 0
