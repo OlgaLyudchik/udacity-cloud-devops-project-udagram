@@ -4,6 +4,9 @@ Description:
   This CloudFormation template deploys a load balanced, auto scaling web application for the Udargam project.
 
 Parameters:
+  # Parameters are optional but will make your CloudFormation templates more reusable.
+  # Use them for things that may change over time, such as server AMI, instance type and so on.
+
   EnvironmentName:
     Description: An environment name that will be prefixed to resource names.
     Type: String
@@ -20,6 +23,11 @@ Parameters:
     Default: t3.medium
 
 Resources:
+
+  # ------------------- IAM settings -------------------- # 
+  # Instance profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers.
+  # Never give too much permissions to your EC2 instances! If they get hacked, the permissions get hacked also!
+  # For our web application we create a Role called UdacityS3ReadOnlyEC2 and just give it a policy of S3 Read-Only Access.
   UdacityS3ReadOnlyEC2:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -44,6 +52,7 @@ Resources:
       Roles: 
         - !Ref UdacityS3ReadOnlyEC2
 
+  # ------------------- Security groups for load balancer and web servers -------------------- # 
   LBSecGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -54,12 +63,12 @@ Resources:
       - IpProtocol: tcp
         FromPort: 80
         ToPort: 80
-        CidrIp: 0.0.0.0/0
+        CidrIp: 0.0.0.0/0 # allow all to access http 80 port 
       SecurityGroupEgress:
       - IpProtocol: tcp
         FromPort: 80
         ToPort: 80
-        CidrIp: 0.0.0.0/0
+        CidrIp: 0.0.0.0/0 # allow 80 port to send outbound traffic
 
   WebServerSecGroup:
     Type: AWS::EC2::SecurityGroup
@@ -71,8 +80,8 @@ Resources:
       - IpProtocol: tcp
         FromPort: 80
         ToPort: 80
-        SourceSecurityGroupId: !Ref LBSecGroup
-      # For the troubleshooting open the 22 port and use bastion hosts to SSH into web servers 
+        SourceSecurityGroupId: !Ref LBSecGroup # allow only load balancer instances to access http 80 port 
+      # For the troubleshooting open 22 port and use bastion hosts' IP address to SSH into web servers 
       #- IpProtocol: tcp
       #  FromPort: 22
       #  ToPort: 22
@@ -89,9 +98,10 @@ Resources:
       - IpProtocol: tcp
         FromPort: 0
         ToPort: 65535
-        CidrIp: 0.0.0.0/0
+        CidrIp: 0.0.0.0/0 # allow all ports to send outbound traffic
   
-  WebAppLB:
+  # ------------------- Auto scaling settings -------------------- # 
+  WebAppLB: # defines LB's location and security group
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Subnets:
@@ -100,7 +110,7 @@ Resources:
       SecurityGroups: 
         - !Ref LBSecGroup
 
-  WebAppTargetGroup:
+  WebAppTargetGroup: # defines LB's health check rules
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       HealthCheckIntervalSeconds: 60
@@ -116,7 +126,7 @@ Resources:
     DependsOn:
       - WebAppLB
 
-  Listener:
+  Listener: # defines which port observes traffic from outside internet
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
@@ -129,7 +139,7 @@ Resources:
       - WebAppLB
       - WebAppTargetGroup
 
-  ALBListenerRule:
+  ALBListenerRule: # defines where to forward the traffic from Listener.
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       Actions:
@@ -141,7 +151,7 @@ Resources:
       ListenerArn: !Ref Listener
       Priority: 1
 
-  WebAppGroup:
+  WebAppGroup: # defines how many web servers to launch in which subnets
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier:
@@ -152,10 +162,11 @@ Resources:
       TargetGroupARNs: 
         - !Ref WebAppTargetGroup
 
+  # ------------------- Web servers launch configurations -------------------- # 
   WebAppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      UserData:
+      UserData: # define services we would like to install and run in EC2 instances upon launching.
         Fn::Base64: !Sub |
           #!/bin/bash
           apt-get update -y
@@ -176,6 +187,10 @@ Resources:
           VolumeSize: '10'
 
 Outputs:
+# Outputs are optional.
+# For our web application we export the LB's URL.
+# This makes it easier to just click on the link and verify that our web app is up and running!
+
   WebAppLB:
     Description: The public URL of web application. 
     Value: 
