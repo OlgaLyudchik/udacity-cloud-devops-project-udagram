@@ -1,5 +1,5 @@
 # Udagram
-The following document contains instractions on how to deploy a highly available web application using AWS CloudFormation.
+The following document contains instructions on how to deploy a highly available web application using AWS CloudFormation.
 
 ## Architecture Diagram
 
